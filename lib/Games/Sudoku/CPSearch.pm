@@ -259,7 +259,7 @@ Version 0.99
     PUZZLE
 
     open FH, ">example.txt";
-    print FH, $puzzle;
+    print FH $puzzle;
     close FH;
 
     my $sudoku = Games::Sudoku::CPSearch->new("example.txt");
