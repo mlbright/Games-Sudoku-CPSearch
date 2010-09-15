@@ -5,7 +5,7 @@ use strict;
 use 5.008;
 use List::MoreUtils qw(all mesh);
 
-our $VERSION = '0.99';
+our $VERSION = '1.00';
 
 # Public methods
 
@@ -238,7 +238,7 @@ Games::Sudoku::CPSearch - Solve Sudoku problems quickly.
 
 =head1 VERSION
 
-Version 0.99
+Version 1.00
 
 =cut
 
