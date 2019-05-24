@@ -15,8 +15,12 @@ my $solved = <<SOLVED;
 164875293
 SOLVED
 
+open my $f, '>', '/tmp/solved';
+print $f $solved;
+close($f);
+
 $solved =~ s/\s//g;
 
-my $sudoku   = Games::Sudoku::CPSearch->new();
+my $sudoku   = Games::Sudoku::CPSearch->new('/tmp/solved');
 my $verified = $sudoku->_verify($solved);
 is( $verified, 1 );
