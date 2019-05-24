@@ -2,235 +2,234 @@ package Games::Sudoku::CPSearch;
 
 use warnings;
 use strict;
-use 5.008;
 use List::MoreUtils qw(all mesh);
 
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 # Public methods
 
 sub new {
-    my ($class, $file) = @_;
-    my $puzzle;
-    if (defined $file) {
-        undef $/;
-        open FH, $file or die "could not open puzzle file\n";
-        my $puzzle = <FH>;
-        close FH;
-        $puzzle =~ s/\s+//;
+  my ( $class, $file ) = @_;
+  my $puzzle;
+  print "hi!\n";
+  if ( defined $file ) {
+    undef $/;
+    open my $fh, '<', $file or die "could not open puzzle file\n";
+    $puzzle = <$fh>;
+    close $fh;
+  }
+  else {
+    return undef;
+  }
+  $puzzle =~ s/\s+//;
+  $puzzle =~ s/0/\./g;    # 0 is a digit, which makes things hairy.
+  $puzzle =~ s/\-/\./g;
+  return undef
+    unless ( ( length($puzzle) == 81 ) && ( $puzzle =~ /^[1-9\.]+$/ ) );
+
+  my $rows    = [qw(A B C D E F G H I)];
+  my $cols    = [qw(1 2 3 4 5 6 7 8 9)];
+  my $squares = $class->_cross( $rows, $cols );
+
+  my @unitlist = ();
+  push @unitlist, $class->_cross( $rows, [$_] ) for @$cols;
+  push @unitlist, $class->_cross( [$_], $cols ) for @$rows;
+  foreach my $r ( [qw(A B C)], [qw(D E F)], [qw(G H I)] ) {
+    foreach my $c ( [qw(1 2 3)], [qw(4 5 6)], [qw(7 8 9)] ) {
+      push @unitlist, $class->_cross( $r, $c );
     }
+  }
 
-    my $rows = [qw(A B C D E F G H I)];
-    my $cols = [qw(1 2 3 4 5 6 7 8 9)];
-    my $squares = $class->_cross($rows, $cols);
-
-    my @unitlist = ();
-    push @unitlist, $class->_cross($rows, [$_]) for @$cols;
-    push @unitlist, $class->_cross([$_], $cols) for @$rows;
-    foreach my $r ([qw(A B C)],[qw(D E F)],[qw(G H I)]) {
-        foreach my $c ([qw(1 2 3)],[qw(4 5 6)],[qw(7 8 9)]) {
-            push @unitlist, $class->_cross($r, $c); 
+  my %units;
+  foreach my $s (@$squares) {
+    $units{$s} = [];
+    foreach my $unit (@unitlist) {
+      foreach my $s2 (@$unit) {
+        if ( $s eq $s2 ) {
+          push @{ $units{$s} }, $unit;
+          last;
         }
+      }
     }
+  }
 
-    my %units;
-    foreach my $s (@$squares) {
-        $units{$s} = [];
-        foreach my $unit (@unitlist) {
-            foreach my $s2 (@$unit) {
-                if ($s eq $s2) {
-                    push @{$units{$s}}, $unit;
-                    last;
-                }
-            }
-        }
+  my %peers;
+  foreach my $s (@$squares) {
+    $peers{$s} = [];
+    foreach my $u ( @{ $units{$s} } ) {
+      foreach my $s2 (@$u) {
+        push( @{ $peers{$s} }, $s2 ) if ( $s2 ne $s );
+      }
     }
+  }
 
-    my %peers;
-    foreach my $s (@$squares) {
-        $peers{$s} = [];
-        foreach my $u (@{$units{$s}}) {
-            foreach my $s2 (@$u) {
-                push(@{$peers{$s}}, $s2) if ($s2 ne $s);
-            }
-        }
-    }
+  my $self = {
+    _unitlist => \@unitlist,
+    _rows     => $rows,
+    _cols     => $cols,
+    _squares  => $squares,
+    _units    => \%units,
+    _peers    => \%peers,
+    _puzzle   => $puzzle,
+    _solution => "",
+  };
 
-    my $self = {
-        _unitlist => \@unitlist,
-        _rows => $rows,
-        _cols => $cols,
-        _squares => $squares,
-        _units => \%units,
-        _peers => \%peers,
-        _puzzle => undef,
-        _solution => "",
-    };
-
-    bless $self, $class;
-    $self->set_puzzle($puzzle) if defined $puzzle;
-    return $self;
+  bless $self, $class;
+  return $self;
 }
 
 sub solution {
-    my ($self) = @_;
-    return $self->{_solution};
+  my ($self) = @_;
+  return $self->{_solution};
 }
 
 sub solve {
-    my ($self) = @_;
-    my $solution = $self->_search($self->_propagate());
-    return undef unless (defined $solution);
-    $self->{_solution} = "";
-    $self->{_solution} .= $solution->{$_} for ($self->_squares());
-    return $self->{_solution};
-}
-
-sub set_puzzle {
-    my ($self, $puzzle) = @_;
-    return undef
-        unless ((length($puzzle) == 81) && ($puzzle =~ /^[\d\.\-]+$/)); 
-    $puzzle =~ s/0/\./g; # 0 is a digit, which makes things hairy.
-    $self->{_puzzle} = $puzzle;
-    return $self->{_puzzle};
+  my ($self) = @_;
+  my $solution = $self->_search( $self->_propagate() );
+  return undef unless ( defined $solution );
+  $self->{_solution} = "";
+  $self->{_solution} .= $solution->{$_} for ( $self->_squares() );
+  return $self->{_solution};
 }
 
 # internal methods
 
 sub _unitlist {
-    my ($self) = @_;
-    return @{$self->{_unitlist}};
+  my ($self) = @_;
+  return @{ $self->{_unitlist} };
 }
 
 sub _rows {
-    my ($self) = @_;
-    return $self->{_rows};
+  my ($self) = @_;
+  return $self->{_rows};
 }
 
 sub _cols {
-    my ($self) = @_;
-    return $self->{_cols};
+  my ($self) = @_;
+  return $self->{_cols};
 }
 
 sub _units {
-    my ($self, $s) = @_;
-    return @{$self->{_units}{$s}};
+  my ( $self, $s ) = @_;
+  return @{ $self->{_units}{$s} };
 }
 
 sub _peers {
-    my ($self, $s) = @_;
-    return @{$self->{_peers}{$s}};
+  my ( $self, $s ) = @_;
+  return @{ $self->{_peers}{$s} };
 }
 
 sub _squares {
-    my ($self) = @_;
-    return @{$self->{_squares}};
+  my ($self) = @_;
+  return @{ $self->{_squares} };
 }
 
 sub _cross {
-    my ($class, $a, $b) = @_;
-    my @cross = ();
-    foreach my $x (@$a) {
-        foreach my $y (@$b) {
-            push @cross, "$x$y";
-        }
+  my ( $class, $a, $b ) = @_;
+  my @cross = ();
+  foreach my $x (@$a) {
+    foreach my $y (@$b) {
+      push @cross, "$x$y";
     }
-    return \@cross; 
+  }
+  return \@cross;
 }
 
 sub _fullgrid {
-    my ($self) = @_;
-    my %grid;
-    $grid{$_} = "123456789" for ($self->_squares());
-    return \%grid;
+  my ($self) = @_;
+  my %grid;
+  $grid{$_} = "123456789" for ( $self->_squares() );
+  return \%grid;
 }
 
 sub _propagate {
-    my ($self) = @_;
-    return undef unless defined $self->_puzzle();
-    my @d = split(//, $self->_puzzle());
-    my @s = $self->_squares();
-    my @z = mesh @s, @d;
-    my $grid = $self->_fullgrid();
-    while (scalar(@z) > 0) {
-        my ($s, $d) = splice(@z,0,2);
-        next unless ($d =~ /^\d$/);
-        return undef unless defined $self->_assign($grid, $s, $d);
-    }
-    return $grid;
+  my ($self) = @_;
+  return undef unless defined $self->_puzzle();
+  my @d    = split( //, $self->_puzzle() );
+  my @s    = $self->_squares();
+  my @z    = mesh @s, @d;
+  my $grid = $self->_fullgrid();
+  while ( scalar(@z) > 0 ) {
+    my ( $s, $d ) = splice( @z, 0, 2 );
+    next unless ( $d =~ /^\d$/ );
+    return undef unless defined $self->_assign( $grid, $s, $d );
+  }
+  return $grid;
 }
 
 sub _assign {
-    my ($self, $grid, $s, $d) = @_;
-    my @delete = grep {$_ ne $d} split(//, $grid->{$s});
-    return $grid if (scalar(@delete) == 0);
-    my @results;
-    foreach my $del (@delete) { 
-        $grid = $self->_eliminate($grid, $s, $del);
-        push @results, $grid;
-    }
-    return $grid if all { defined($_) } @results;
-    return undef;
+  my ( $self, $grid, $s, $d ) = @_;
+  my @delete = grep { $_ ne $d } split( //, $grid->{$s} );
+  return $grid if ( scalar(@delete) == 0 );
+  my @results;
+  foreach my $del (@delete) {
+    $grid = $self->_eliminate( $grid, $s, $del );
+    push @results, $grid;
+  }
+  return $grid if all { defined($_) } @results;
+  return undef;
 }
 
 sub _eliminate {
-    my ($self, $grid, $s, $d) = @_;
-    return $grid
-        unless ((defined $grid->{$s}) && ($grid->{$s} =~ /$d/));
-    $grid->{$s} =~ s/$d//;
-    my $len = length($grid->{$s});
-    return undef if ($len == 0);
-    if ($len == 1) {
-        foreach my $peer ($self->_peers($s)) {
-            $grid = $self->_eliminate($grid, $peer, $grid->{$s});
-            return undef unless defined $grid;
-        }
+  my ( $self, $grid, $s, $d ) = @_;
+  return $grid
+    unless ( ( defined $grid->{$s} ) && ( $grid->{$s} =~ /$d/ ) );
+  $grid->{$s} =~ s/$d//;
+  my $len = length( $grid->{$s} );
+  return undef if ( $len == 0 );
+  if ( $len == 1 ) {
+    foreach my $peer ( $self->_peers($s) ) {
+      $grid = $self->_eliminate( $grid, $peer, $grid->{$s} );
+      return undef unless defined $grid;
     }
+  }
 
-    foreach my $unit ($self->_units($s)) {
-        my @dplaces = grep { $grid->{$_} =~ /$d/ } @$unit;
-        my $locations = scalar @dplaces;
-        return undef if ($locations == 0);
-        if ($locations == 1) {
-            $grid = $self->_assign($grid, $dplaces[0], $d);
-            return undef unless defined $grid;
-        }
-    }   
-    return $grid;
+  foreach my $unit ( $self->_units($s) ) {
+    my @dplaces = grep { $grid->{$_} =~ /$d/ } @$unit;
+    my $locations = scalar @dplaces;
+    return undef if ( $locations == 0 );
+    if ( $locations == 1 ) {
+      $grid = $self->_assign( $grid, $dplaces[0], $d );
+      return undef unless defined $grid;
+    }
+  }
+  return $grid;
 }
 
 sub _search {
-    my ($self, $grid) = @_;
-    return undef unless defined $grid;
-    return $grid if (all {length($grid->{$_}) == 1} $self->_squares());
-    # solved!
-    my @sorted = sort {length($grid->{$a}) <=> length($grid->{$b})}
-        grep {length($grid->{$_}) > 1} $self->_squares();
-    my $fewest_digits = shift @sorted;
-    my $result = undef;
-    foreach my $d (split(//, $grid->{$fewest_digits})) {
-        my %grid_copy = %$grid; 
-        $result = $self->_search($self->_assign(\%grid_copy, $fewest_digits, $d));
-        return $result if defined $result;
-    }
-    return $result;
+  my ( $self, $grid ) = @_;
+  return undef unless defined $grid;
+  return $grid if ( all { length( $grid->{$_} ) == 1 } $self->_squares() );
+
+  # solved!
+  my @sorted = sort { length( $grid->{$a} ) <=> length( $grid->{$b} ) }
+    grep { length( $grid->{$_} ) > 1 } $self->_squares();
+  my $fewest_digits = shift @sorted;
+  my $result        = undef;
+  foreach my $d ( split( //, $grid->{$fewest_digits} ) ) {
+    my %grid_copy = %$grid;
+    $result
+      = $self->_search( $self->_assign( \%grid_copy, $fewest_digits, $d ) );
+    return $result if defined $result;
+  }
+  return $result;
 }
 
 sub _puzzle {
-    my ($self) = @_;
-    return $self->{_puzzle};
+  my ($self) = @_;
+  return $self->{_puzzle};
 }
 
 sub _verify {
-    my ($self, $puzzle) = @_;
-    for (1..9) {
-        my $count = () = $puzzle =~ /$_/g;
-        return undef unless $count == 9;
-    }
-    return 1;
+  my ( $self, $puzzle ) = @_;
+  for ( 1 .. 9 ) {
+    my $count = () = $puzzle =~ /$_/g;
+    return undef unless $count == 9;
+  }
+  return 1;
 }
 
-1; # End of Games::Sudoku::CPSearch
+1;    # End of Games::Sudoku::CPSearch
 
 =head1 NAME
 
@@ -258,11 +257,7 @@ Version 1.00
     1.4......
     PUZZLE
 
-    open FH, ">example.txt";
-    print FH $puzzle;
-    close FH;
-
-    my $sudoku = Games::Sudoku::CPSearch->new("example.txt");
+    my $sudoku = Games::Sudoku::CPSearch->new($puzzle);
     print $sudoku->solve(), "\n";
 
 =head1 DESCRIPTION
@@ -280,17 +275,6 @@ Initializes the sudoku solving framework.
 =item $o->solve()
 
 Solves the puzzle. Returns the solution as a flat 81 character string.
-
-=item $o->set_puzzle($puzzle)
-
-Sets the puzzle to be solved. The only parameter is the 81 character string
-representing the puzzle. The only characters allowed are [0-9\.\-].
-Sets the puzzle to be solved. You can then reuse the object:
-
-    my $o = Games::Sudoku::CPSearch->set_puzzle($puzzle);
-    print $o->solve(), "\n";
-    $o->set_puzzle($another_puzzle);
-    print $o->solve(), "\n";
 
 =item $o->solution()
 
@@ -351,7 +335,7 @@ Return list of all the peers for a given square.
 
 =item $o->_search()
 
-Perform search for a given grid after constraint propagation. 
+Perform search for a given grid after constraint propagation.
 
 =item $o->_cross()
 
@@ -359,7 +343,7 @@ Return "cross product" of 2 arrays.
 
 =item $o->_verify($solution)
 
-Returns undef if the sudoku solution is not valid. Returns 1 if it is. 
+Returns undef if the sudoku solution is not valid. Returns 1 if it is.
 
 =back
 
