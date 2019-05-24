@@ -15,7 +15,9 @@ my $puzzle = <<PUZZLE;
 1.4......
 PUZZLE
 
-$puzzle =~ s/\s//g;
+open my $f, '>', '/tmp/demo';
+print $f $puzzle;
+close($f);
 
 my $solved = <<SOLVED;
 417369825
@@ -31,12 +33,10 @@ SOLVED
 
 $solved =~ s/\s//g;
 
-my $sudoku = Games::Sudoku::CPSearch->new();
+my $sudoku  = Games::Sudoku::CPSearch->new('/tmp/demo');
 my $success = 0;
-if (defined $sudoku->set_puzzle($puzzle)) {
-	if ($sudoku->solve() eq $solved) {
-		$success = 1;
-	}
+if ( $sudoku->solve() eq $solved ) {
+  $success = 1;
 }
 
-is($success, 1);
+is( $success, 1 );

@@ -7,26 +7,25 @@ use List::MoreUtils qw( mesh );
 my @problems;
 my @solutions;
 my $line;
-while ($line = <DATA>) {
-	last if ($line =~ /^\s+$/);
-	chomp $line;
-	push @problems, $line;
+while ( $line = <DATA> ) {
+  last if ( $line =~ /^\s+$/ );
+  chomp $line;
+  push @problems, $line;
 }
-while ($line = <DATA>) {
-	chomp $line;
-	push @solutions, $line;
+while ( $line = <DATA> ) {
+  chomp $line;
+  push @solutions, $line;
 }
 
-my @z = mesh(@problems, @solutions);
+my @z = mesh( @problems, @solutions );
 
-# first puzzle
-my $sudoku = Games::Sudoku::CPSearch->new();
-
-# rest of the puzzles...
-while (scalar(@z) > 0) {
-	my ($p, $s) = splice(@z, 0, 2);
-	$sudoku->set_puzzle($p);
-	is($sudoku->solve(), $s);
+while ( scalar(@z) > 0 ) {
+  my ( $p, $s ) = splice( @z, 0, 2 );
+  open my $f, '>', '/tmp/puzzle';
+  print $f $p;
+  close $f;
+  my $sudoku = Games::Sudoku::CPSearch->new('/tmp/puzzle');
+  is( $sudoku->solve(), $s );
 }
 
 __DATA__
@@ -143,10 +142,6 @@ __DATA__
 129576348376428519584391627293815764417263895865749132958632471731984256642157983
 615382479943765812827491536752634198168279354394518627286157943579843261431926785
 718435692963278541254961378547612839192387456386549127675893214421756983839124765
-open my $fh, '>', '/tmp/hard';
-print $fh $hard_unsolved;
-close $fh;
-
 458276931623891475197534286371452698269783154845169327712948563986315742534627819
 123759486874261593965384721216543978357896142498127365532478619641932857789615234
 518476239427359618963821574795248361832617945146935827379564182651782493284193756
