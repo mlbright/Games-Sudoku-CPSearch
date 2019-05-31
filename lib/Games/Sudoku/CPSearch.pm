@@ -11,7 +11,6 @@ our $VERSION = '1.01';
 sub new {
   my ( $class, $file ) = @_;
   my $puzzle;
-  print "hi!\n";
   if ( defined $file ) {
     undef $/;
     open my $fh, '<', $file or die "could not open puzzle file\n";
@@ -25,7 +24,7 @@ sub new {
   $puzzle =~ s/0/\./g;    # 0 is a digit, which makes things hairy.
   $puzzle =~ s/\-/\./g;
   return undef
-    unless ( ( length($puzzle) == 81 ) && ( $puzzle =~ /^[1-9\.]+$/ ) );
+    unless ( ( length($puzzle) == 81 ) && ( $puzzle =~ /^[\d\.]+$/ ) );
 
   my $rows    = [qw(A B C D E F G H I)];
   my $cols    = [qw(1 2 3 4 5 6 7 8 9)];
